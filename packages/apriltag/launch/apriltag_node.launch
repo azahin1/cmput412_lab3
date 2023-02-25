@@ -1,0 +1,6 @@
+<launch>
+    <arg name="veh" doc="Name of vehicle. ex: shuba"/>
+    <node pkg="apriltag" type="apriltag_node.py" name="apiltag_node" output="screen">
+        <param name="veh" value="$(arg veh)" />
+    </node>
+</launch>

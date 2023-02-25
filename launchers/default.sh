@@ -12,9 +12,10 @@ dt-launchfile-init
 # NOTE: Use the variable DT_REPO_PATH to know the absolute path to your code
 # NOTE: Use `dt-exec COMMAND` to run the main process (blocking process)
 
-# launching app
-dt-exec roslaunch led_emitter led_emitter_node.launch veh:=csc229XX
-dt-exec roslaunch duckietown_demos deadreckoning.launch
+# # launching app
+# dt-exec roslaunch led_emitter led_emitter_node.launch veh:=csc22920
+# dt-exec roslaunch duckietown_demos deadreckoning.launch
+dt-exec roslaunch apriltag apriltag_node.launch
 
 # ----------------------------------------------------------------------------
 # YOUR CODE ABOVE THIS LINE
