@@ -15,7 +15,8 @@ dt-launchfile-init
 # # launching app
 # dt-exec roslaunch led_emitter led_emitter_node.launch veh:=csc22920
 # dt-exec roslaunch duckietown_demos deadreckoning.launch
-dt-exec roslaunch apriltag apriltag_node.launch
+# dt-exec roslaunch apriltag apriltag_node.launch
+dt-exec roslaunch lane_follow lane_node.launch
 
 # ----------------------------------------------------------------------------
 # YOUR CODE ABOVE THIS LINE
