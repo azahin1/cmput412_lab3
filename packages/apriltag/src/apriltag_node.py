@@ -2,19 +2,23 @@
 
 import os
 import rospy
-from std_msgs.msg import CompressedImage
 from duckietown.dtros import DTROS, NodeType
+from sensor_msgs.msg import CompressedImage
 
 class ApriltagNode(DTROS):
 
     def __init__(self, node_name):
+        # initialize the DTROS parent class
         super(ApriltagNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
-        print("nice")
-        # self.img = rospy.Subscriber('chatter', CompressedImage, self.callback)
+        # construct publisher
+        botName = os.environ['HOSTNAME']
+        self.imgSub = rospy.Subscriber(f"{botName}/camera_node/image/compressed", CompressedImage, self.imgProcess)
 
-    def callback(self, data):
-        print(type(data))
+    def imgProcess(self, data):
+        rospy.loginfo(f"Image size: {data.format}")
 
-if __name__ == "__main__":
-    tag = ApriltagNode(node_name = "apriltag_node")
+if __name__ == '__main__':
+    # create the node
+    imgNode = ApriltagNode(node_name='camera_node')
+    # keep spinning
     rospy.spin()
