@@ -5,21 +5,23 @@ import rospy
 from duckietown.dtros import DTROS, NodeType
 from sensor_msgs.msg import CompressedImage
 from duckietown_msgs.msg import WheelsCmdStamped
+import numpy as np
+import cv2
+from cv_bridge import CvBridge
 
 class LaneNode(DTROS):
     def __init__(self, node_name):
         # initialize the DTROS parent class
         super(LaneNode, self).__init__(node_name=node_name, node_type=NodeType.GENERIC)
         botName = os.environ['HOSTNAME']
+        self.bridge = CvBridge()
 
         # lane detection subscriber
-        self.cameraSub = rospy.Subscriber(f"{botName}/camera_node/image/compressed", CompressedImage, self.moveWheels)
+        self.cameraSub = rospy.Subscriber(f"{botName}/camera_node/image/compressed", CompressedImage, self.followLane)
+        self.cameraPub = rospy.Publisher(f"{botName}/camera_node/lane_tracker/compressed", CompressedImage, queue_size = 1)
 
         # wheel movement publisher
         self.wheelPub = rospy.Publisher(f"{botName}/wheels_driver_node/wheels_cmd", WheelsCmdStamped, queue_size = 1)
-        self.wheelVel = [0.2, 0.2]
-
-        rospy.on_shutdown(self.shutdown)
 
     def followLane(self, data): # only change the wheels speeds
         # process image data
@@ -27,19 +29,26 @@ class LaneNode(DTROS):
         # |---D---| so it stays in the center
 
         # change wheel speeds based on image data
-        self.wheelVel[0] = 1
-        self.wheelVel[1] = 1
+        imgData = cv2.imdecode(np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
 
-    def moveWheels(self, data): # only move the wheels based on velocity
-        wheelsMsg = WheelsCmdStamped()
+        hsv = cv2.cvtColor(imgData, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
+        yellow = cv2.bitwise_and(imgData, imgData, mask = mask)
 
-        wheelsMsg.vel_left = self.wheelVel[0]
-        wheelsMsg.vel_right = self.wheelVel[1]
+        gray = cv2.cvtColor(yellow, cv2.COLOR_BGR2GRAY)
+        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blur, 50, 150)
+        contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        self.wheelPub.publish(wheelsMsg)
+        conImg = cv2.drawContours(np.zeros_like(imgData), contours, -1, (30, 255, 255), 2)
+        self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
 
-    def shutdown(self):
-        self.wheelPub.unregister()
+        # wheelsMsg = WheelsCmdStamped()
+
+        # wheelsMsg.vel_left = 0.3 + 0.01*err
+        # wheelsMsg.vel_right = 0.3 - 0.01*err
+
+        # self.wheelPub.publish(wheelsMsg)
 
 if __name__ == '__main__':
     # create the node
@@ -48,4 +57,4 @@ if __name__ == '__main__':
         # keep spinning
         rospy.spin()
     finally:
-        laneNode.stopWheels()
+        pass
