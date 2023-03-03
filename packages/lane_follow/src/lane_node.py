@@ -29,8 +29,21 @@ class LaneNode(DTROS):
         # |---D---| so it stays in the center
 
         # change wheel speeds based on image data
-        imgData = cv2.imdecode(np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
+        img = cv2.imdecode(np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
+        # wheelsMsg = WheelsCmdStamped()
 
+        contours = self.makeContour(img)
+        error = self.getError(img.shape, contours)
+
+        conImg = cv2.drawContours(np.zeros_like(img), contours, -1, (30, 255, 255), 2)
+
+        # wheelsMsg.vel_left = 0.3 + 0.01*err
+        # wheelsMsg.vel_right = 0.3 - 0.01*err
+
+        self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
+        # self.wheelPub.publish(wheelsMsg)
+
+    def makeContour(self, imgData):
         hsv = cv2.cvtColor(imgData, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
         yellow = cv2.bitwise_and(imgData, imgData, mask = mask)
@@ -40,15 +53,23 @@ class LaneNode(DTROS):
         edges = cv2.Canny(blur, 50, 150)
         contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        conImg = cv2.drawContours(np.zeros_like(imgData), contours, -1, (30, 255, 255), 2)
-        self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
+        return contours
+    
+    def getError(self, dim, contours):
+        err = 0
+        w = 0
+        for c in contours:
+            m = cv2.moments(c)
+            if m["m00"]:
+                cx = int(m["m10"]/m["m00"]) # x position of the contour centroid center
+                cy = int(m["m01"]/m["m00"]) # y position of the contour centroid center
 
-        # wheelsMsg = WheelsCmdStamped()
-
-        # wheelsMsg.vel_left = 0.3 + 0.01*err
-        # wheelsMsg.vel_right = 0.3 - 0.01*err
-
-        # self.wheelPub.publish(wheelsMsg)
+                cw = cy/dim[0] if cy >= dim[0]/2 else 0 # weight of the pixels are determained by how low it is on the pic
+                err += cx*cw
+                w += cw
+        err = (err/w - dim[1]/2) if w else 0 # if no yellow detected, just go forward
+        print(f"Error: {err}")
+        return err
 
 if __name__ == '__main__':
     # create the node
