@@ -32,23 +32,24 @@ class LaneNode(DTROS):
         img = cv2.imdecode(np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
         # wheelsMsg = WheelsCmdStamped()
 
-        contours = self.makeContour(img)
+        contours = self.makeContour(img, np.array([20, 100, 100]), np.array([30, 255, 255])) # yellow contours
         error = self.getError(img.shape, contours)
 
         conImg = cv2.drawContours(np.zeros_like(img), contours, -1, (30, 255, 255), 2)
 
-        # wheelsMsg.vel_left = 0.3 + 0.01*err
-        # wheelsMsg.vel_right = 0.3 - 0.01*err
+        # accScaling = 0.01
+        # wheelsMsg.vel_left = 1.0 + accScaling*err
+        # wheelsMsg.vel_right = 1.0 - accScaling*err
 
         self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
         # self.wheelPub.publish(wheelsMsg)
 
-    def makeContour(self, imgData):
+    def makeContour(self, imgData, colMin, colMax):
         hsv = cv2.cvtColor(imgData, cv2.COLOR_BGR2HSV)
-        mask = cv2.inRange(hsv, np.array([20, 100, 100]), np.array([30, 255, 255]))
-        yellow = cv2.bitwise_and(imgData, imgData, mask = mask)
+        mask = cv2.inRange(hsv, colMin, colMax)
+        colour = cv2.bitwise_and(imgData, imgData, mask = mask)
 
-        gray = cv2.cvtColor(yellow, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(colour, cv2.COLOR_BGR2GRAY)
         blur = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(blur, 50, 150)
         contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
