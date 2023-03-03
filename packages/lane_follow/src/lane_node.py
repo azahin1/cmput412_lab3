@@ -22,27 +22,26 @@ class LaneNode(DTROS):
 
         # wheel movement publisher
         self.wheelPub = rospy.Publisher(f"{botName}/wheels_driver_node/wheels_cmd", WheelsCmdStamped, queue_size = 1)
+        
+        rospy.on_shutdown(self.stopWheels)
 
     def followLane(self, data): # only change the wheels speeds
-        # process image data
-        # error is the difference of the bots position from the left line and the right line
-        # |---D---| so it stays in the center
-
-        # change wheel speeds based on image data
         img = cv2.imdecode(np.frombuffer(data.data, np.uint8), cv2.IMREAD_COLOR)
-        # wheelsMsg = WheelsCmdStamped()
+        wheelsMsg = WheelsCmdStamped()
 
         contours = self.makeContour(img, np.array([20, 100, 100]), np.array([30, 255, 255])) # yellow contours
         error = self.getError(img.shape, contours)
 
         conImg = cv2.drawContours(np.zeros_like(img), contours, -1, (30, 255, 255), 2)
 
-        # accScaling = 0.01
-        # wheelsMsg.vel_left = 1.0 + accScaling*err
-        # wheelsMsg.vel_right = 1.0 - accScaling*err
+        # change wheel speeds based on image data
+        accScaling = 0.003
+        wheelsMsg.vel_left = 0.5 + accScaling*error
+        wheelsMsg.vel_right = 0.5 - accScaling*error
 
+        print(round(wheelsMsg.vel_left, 2), round(wheelsMsg.vel_right, 2), end = "\n")
         self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
-        # self.wheelPub.publish(wheelsMsg)
+        self.wheelPub.publish(wheelsMsg)
 
     def makeContour(self, imgData, colMin, colMax):
         hsv = cv2.cvtColor(imgData, cv2.COLOR_BGR2HSV)
@@ -65,12 +64,23 @@ class LaneNode(DTROS):
                 cx = int(m["m10"]/m["m00"]) # x position of the contour centroid center
                 cy = int(m["m01"]/m["m00"]) # y position of the contour centroid center
 
-                cw = cy/dim[0] if cy >= dim[0]/2 else 0 # weight of the pixels are determained by how low it is on the pic
+                cw = 1 if (cy >= dim[0]/2 and cx >= dim[1]/5 and cx <= 4*dim[1]/5) else 0 # weight of the pixels are determained by how low it is on the pic
                 err += cx*cw
                 w += cw
         err = (err/w - dim[1]/2) if w else 0 # if no yellow detected, just go forward
-        print(f"Error: {err}")
+        print(f"Error: {err:0.2f}", end = " | ")
         return err
+    
+    def stopWheels(self):
+        wheelsMsg = WheelsCmdStamped()
+
+        wheelsMsg.vel_left = 0
+        wheelsMsg.vel_right = 0
+
+        for i in range(5):
+            self.wheelPub.publish(wheelsMsg)
+
+
 
 if __name__ == '__main__':
     # create the node
