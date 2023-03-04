@@ -18,7 +18,7 @@ class LaneNode(DTROS):
 
         # lane detection subscriber
         self.cameraSub = rospy.Subscriber(f"{botName}/camera_node/image/compressed", CompressedImage, self.followLane)
-        self.cameraPub = rospy.Publisher(f"{botName}/camera_node/lane_tracker/compressed", CompressedImage, queue_size = 1)
+        # self.cameraPub = rospy.Publisher(f"{botName}/camera_node/lane_tracker/compressed", CompressedImage, queue_size = 1)
 
         # wheel movement publisher
         self.wheelPub = rospy.Publisher(f"{botName}/wheels_driver_node/wheels_cmd", WheelsCmdStamped, queue_size = 1)
@@ -32,15 +32,15 @@ class LaneNode(DTROS):
         contours = self.makeContour(img, np.array([20, 100, 100]), np.array([30, 255, 255])) # yellow contours
         error = self.getError(img.shape, contours)
 
-        conImg = cv2.drawContours(np.zeros_like(img), contours, -1, (30, 255, 255), 2)
+        # conImg = cv2.drawContours(np.zeros_like(img), contours, -1, (30, 255, 255), 2)
 
         # change wheel speeds based on image data
-        accScaling = 0.003
+        accScaling = 0.0035
         wheelsMsg.vel_left = 0.5 + accScaling*error
         wheelsMsg.vel_right = 0.5 - accScaling*error
 
-        print(round(wheelsMsg.vel_left, 2), round(wheelsMsg.vel_right, 2), end = "\n")
-        self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
+        # print(round(wheelsMsg.vel_left, 2), round(wheelsMsg.vel_right, 2), end = "\n")
+        # self.cameraPub.publish(self.bridge.cv2_to_compressed_imgmsg(conImg))
         self.wheelPub.publish(wheelsMsg)
 
     def makeContour(self, imgData, colMin, colMax):
@@ -68,7 +68,9 @@ class LaneNode(DTROS):
                 err += cx*cw
                 w += cw
         err = (err/w - dim[1]/2) if w else 0 # if no yellow detected, just go forward
-        print(f"Error: {err:0.2f}", end = " | ")
+        err = 0 if (err >= -40 and err <= 40) else err
+
+        # print(f"Error: {err:0.2f}", end = " | ")
         return err
     
     def stopWheels(self):
@@ -77,7 +79,7 @@ class LaneNode(DTROS):
         wheelsMsg.vel_left = 0
         wheelsMsg.vel_right = 0
 
-        for i in range(5):
+        for i in range(10):
             self.wheelPub.publish(wheelsMsg)
 
 
