@@ -79,10 +79,8 @@ class LaneNode(DTROS):
         wheelsMsg.vel_left = 0
         wheelsMsg.vel_right = 0
 
-        for i in range(10):
+        for i in range(5):
             self.wheelPub.publish(wheelsMsg)
-
-
 
 if __name__ == '__main__':
     # create the node

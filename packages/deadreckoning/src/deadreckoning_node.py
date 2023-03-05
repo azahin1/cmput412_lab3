@@ -198,9 +198,9 @@ class DeadReckoningNode(DTROS):
     def publish_odometry(self):
         odom = Odometry()
         odom.header.stamp = rospy.Time.now()  # Ideally, should be encoder time
-        odom.header.frame_id = self.origin_frame
+        odom.header.frame_id = self.target_frame
         odom.pose.pose = Pose(Point(self.x, self.y, self.z), Quaternion(*self.q))
-        odom.child_frame_id = self.target_frame
+        odom.child_frame_id = self.origin_frame
         odom.twist.twist = Twist(Vector3(self.tv, 0.0, 0.0), Vector3(0.0, 0.0, self.rv))
 
         self.pub.publish(odom)
